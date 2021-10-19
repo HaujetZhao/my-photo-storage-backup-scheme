@@ -76,8 +76,11 @@ def main():
     忽略文件夹列表 = [y 
                 for x in 忽略文件夹.strip().splitlines() 
                 for y in glob.glob(f'{主库位置}/{x}')
-                if path.isdir(y)]
-    # print('忽略以下文件夹：')
+                if path.isdir(y)] + [ y
+                for x in 忽略文件夹.strip().splitlines()
+                for y in glob.glob(f'{随库位置}/{x}')
+                if path.isdir(y)
+                ]
     # pprint(忽略文件夹列表)
     合法图片后缀 = [x for x in 图片后缀.strip().splitlines()]
     合法视频后缀 = [x for x in 视频后缀.strip().splitlines()]
