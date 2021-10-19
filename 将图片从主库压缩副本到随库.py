@@ -19,6 +19,7 @@
   这样，每次只要对不在记录中的视频进行损坏检测即可
 """
 
+from ntpath import join
 import os
 import subprocess
 import glob
@@ -197,7 +198,7 @@ def main():
     压缩主库视频到随库(主库需要压缩的视频列表)
     
     if 删除随库冗余媒体:
-        if 随库需要删除图片列表 and 随库需要删除视频列表:
+        if 随库需要删除图片列表 or 随库需要删除视频列表:
             print(f'正在删除随库中的冗余媒体文件……\n')
             依列表删除随库文件(随库需要删除图片列表)
             依列表删除随库文件(随库需要删除视频列表)
@@ -248,8 +249,15 @@ def 筛选出完好的视频列表(根目录, 列表, 记录文件):
     
     # 得到还没有记录的视频有哪些
     with open(记录文件, encoding='utf-8') as f:
-        记录列表 = [x.strip() for x in f.readlines()]
-        待测列表 = [x for x in 列表 if path.join(x[0], x[1]) not in 记录列表]
+        记录内容 = f.read()
+        现有列表 = [path.join(x[0], x[1]) for x in 列表] # 随库中的文件列表（相对路径）
+        记录列表 = [x.strip() for x in 记录内容.splitlines()] # 记录文件中的文件列表
+        新记录列表 = [x for x in 记录列表 if x in 现有列表] # 记录文件更新，去除已删除文件的记录
+        待测列表 = [x for x in 现有列表 if x not in 新记录列表]
+        if 新记录列表 != 记录列表: 
+            f = open(记录文件, 'w', encoding='utf-8')
+            f.write('\n'.join(新记录列表))
+        
     
     # 对没有记录的视频进行检测
     with open(记录文件, 'a', encoding='utf-8') as f:
@@ -292,7 +300,7 @@ def 压缩主库图片到随库(图片列表):
             capture_output=True).stdout
         
         print(f'    正在压缩第 {index+1} 张图片（共 {len(图片列表)} 张）：')
-        print(f'        原文件路径 {src_rel}')
+        print(f'        原文件路径 {path.join("主库", src_rel)}')
         print(f'        原始大小 {文件大小(src)}')
         
         
@@ -315,7 +323,7 @@ def 压缩主库图片到随库(图片列表):
                     f'magick "{src}" -resize "2000x2000^>" -quality 70 "{dst}"', 
                 ), capture_output=True
             )
-        print(f'        新文件路径 {dst_rel}')
+        print(f'        新文件路径 {path.join("随库", dst_rel)}')
         print(f'        压缩后大小 {文件大小(dst)}')
         压缩比例 = path.getsize(dst) / path.getsize(src) * 100
         print(f'        比原来减小 {"%0.2f" % (100 - 压缩比例)}%\n')
@@ -337,7 +345,7 @@ def 压缩主库视频到随库(视频列表):
             os.makedirs(path.dirname(dst))
         
         print(f'    正在压缩第 {index+1} 个视频（共 {len(视频列表)} 个）：')
-        print(f'        原视频路径 {src_rel}')
+        print(f'        原视频路径 {path.join("主库", src_rel)}')
         print(f'        原始大小   {文件大小(src)}')
 
         原视频信息 = 取得视频信息(src)
@@ -380,7 +388,7 @@ def 压缩主库视频到随库(视频列表):
         新视频信息 = 取得视频信息(dst)
         新视频比特率 = int(新视频信息['bit_rate']) / 1024 / 1024
         
-        # print(f'        新文件路径 {dst_rel}')
+        print(f'        新视频路径 {path.join("随库", dst_rel)}')
         print(f'        新比特率   {"%0.2f" % 新视频比特率}Mbps')
         print(f'        压缩后大小 {文件大小(dst)}')
         压缩比例 = path.getsize(dst) / path.getsize(src) * 100
