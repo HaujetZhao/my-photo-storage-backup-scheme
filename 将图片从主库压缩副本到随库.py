@@ -259,7 +259,6 @@ def 筛选出完好的视频列表(根目录, 列表, 记录文件):
         if 新记录列表 != 记录列表: 
             f = open(记录文件, 'w', encoding='utf-8')
             f.write('\n'.join(新记录列表))
-        join()
     
     # 对没有记录的视频进行检测
     with open(记录文件, 'a', encoding='utf-8') as f:
