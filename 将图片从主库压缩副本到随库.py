@@ -17,6 +17,7 @@
   所以，在实现上，要在随库新建一个文本文件，叫 .intact_video
   将已经检测过的、完好的视频，放到这个文本文件中
   这样，每次只要对不在记录中的视频进行损坏检测即可
+- 在转换前，先查看原图片有没有 exif 创建时间，如果没有，就根据文件名、文件创建时间进行纠正
 - 压缩视频时，要确保原视频的 creation_time 写入新视频的元数据，以确保它在图库中有正常的时间排序
 - 在转换视频前，先看一下视频文件有没有 creation_time 元数据，如果没有，
   就读取它的文件创建时间，将这个时间写到它的 creation_time 元数据，保存，再进行转换
@@ -29,6 +30,12 @@
     电脑就会将它的创建时间作为排序依据
     而这个创建时间，每转移一次文件，都会重新生成一次
     导致旧的视频，总是在图库中排在日期靠前的位置
+
+在运行前，请确保已将下列程序下载，并将其二进制程序所在文件夹的路径添加到了 PATH 环境变量中：
+
+- FFmpeg 和 FFprobe
+- ImageMagick
+- ExifTool
 
 """
 
@@ -72,7 +79,9 @@ from pprint import pprint
 # 在随库中用于存放完好视频的记录文件
 完好视频记录文件 = '.intact_video'
 
+# 查看原始图片、视频的元数据中是否有创建时间，如果没有，先对原文件进行纠正，再进行转换
 自动纠正视频创建时间 = True
+自动纠正图片创建时间 = True
 
 # 是否要删除随库中的冗余的照片、视频？
 # 解释一下：随库中的图片是主库中的压缩版本
@@ -320,6 +329,9 @@ def 压缩主库图片到随库(图片列表):
         print(f'        原文件路径 {path.join("主库", src_rel)}')
         print(f'        原始大小 {文件大小(src)}')
         
+        if 自动纠正图片创建时间:
+            纠正图片创建时间(src)
+        
         
         
         if float(宽高比) > 0.3 and float(宽高比) < 3:
@@ -450,11 +462,36 @@ def 纠正视频创建时间(文件路径):
         print(f'        检测到原始视频中不包含媒体创建时间，使用 exiftool 进行纠正')
         subprocess.run(
             shlex.split(
-                f'exiftool -overwrite_original "-CreateDate={datetime.fromtimestamp(path.getctime(文件路径)).isoformat()}" "{文件路径}"'
+                f'exiftool -overwrite_original "-AllDates={datetime.fromtimestamp(path.getctime(文件路径)).isoformat()}" "{文件路径}"'
             ), capture_output=True
         )
         # 可能会需要 -charset filename=YOUR_SYSTEM_CODE_PAGE
 
+
+def 纠正图片创建时间(文件路径):
+    时间输出 = subprocess.run(
+            shlex.split(
+                f'magick identify -format %[exif:datetime] "{文件路径}"'
+            ), capture_output=True
+        ).stdout
+    
+    if not 时间输出: 
+        print(f'        检测到原始图片的原数据没有创建时间，使用 exiftool 进行纠正')
+        if len(''.join(filter(str.isdigit, path.basename(文件路径)))) > 14:
+            # 使用文件名中的时间纠正
+            subprocess.run(
+                shlex.split(
+                    f'exiftool -overwrite_original "-alldates<filename" "{文件路径}"'
+                ), capture_output=True
+            )
+        else:
+            # 使用文件创建时间纠正
+            subprocess.run(
+                shlex.split(
+                    f'exiftool -overwrite_original "-alldates<FileCreateDate" "{文件路径}"'
+                ), capture_output=True
+            )
+        # 可能会需要 -charset filename=YOUR_SYSTEM_CODE_PAGE
 
 
 if __name__ == '__main__': 
