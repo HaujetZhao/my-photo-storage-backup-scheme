@@ -17,6 +17,19 @@
   所以，在实现上，要在随库新建一个文本文件，叫 .intact_video
   将已经检测过的、完好的视频，放到这个文本文件中
   这样，每次只要对不在记录中的视频进行损坏检测即可
+- 压缩视频时，要确保原视频的 creation_time 写入新视频的元数据，以确保它在图库中有正常的时间排序
+- 在转换视频前，先看一下视频文件有没有 creation_time 元数据，如果没有，
+  就读取它的文件创建时间，将这个时间写到它的 creation_time 元数据，保存，再进行转换
+  为什么要这样做？
+    正常手机、相机拍摄的视频，里面都会有一个拍摄时间的元数据，例如是 5 月 6 号拍摄
+    这个时间与在手机上文件创建的时间一致
+    但当你在 6 月 1 号，将这个视频复制到电脑上时，文件的创建时间就会变成 6 月 1 号
+    唯一记录这个视频正确的创建时间的，只有视频文件中的元数据
+    如果通过某些软件的剪辑，这个元数据丢失了
+    电脑就会将它的创建时间作为排序依据
+    而这个创建时间，每转移一次文件，都会重新生成一次
+    导致旧的视频，总是在图库中排在日期靠前的位置
+
 """
 
 import os
@@ -26,6 +39,7 @@ import json
 import shlex
 import time
 from os import path
+from datetime import datetime
 from io import TextIOWrapper
 from pathlib import Path
 from pprint import pprint
@@ -57,6 +71,8 @@ from pprint import pprint
 
 # 在随库中用于存放完好视频的记录文件
 完好视频记录文件 = '.intact_video'
+
+自动纠正视频创建时间 = True
 
 # 是否要删除随库中的冗余的照片、视频？
 # 解释一下：随库中的图片是主库中的压缩版本
@@ -345,9 +361,13 @@ def 压缩主库视频到随库(视频列表):
         if not path.exists(path.dirname(dst)):
             os.makedirs(path.dirname(dst))
         
-        print(f'    正在压缩第 {index+1} 个视频（共 {len(视频列表)} 个）：')
+        print(f'    正在处理第 {index+1} 个视频（共 {len(视频列表)} 个）：')
         print(f'        原视频路径 {path.join("主库", src_rel)}')
         print(f'        原始大小   {文件大小(src)}')
+        
+        # 确保视频有正确的创建时间
+        if 自动纠正视频创建时间:
+            纠正视频创建时间(src)
 
         原视频信息 = 取得视频信息(src)
         if not 原视频信息:
@@ -417,6 +437,23 @@ def 文件大小(文件路径):
     if not path.exists(文件路径):
         return False
     return 适当大小(path.getsize(文件路径))
+
+def 纠正视频创建时间(文件路径):
+    json输出 = json.loads(
+        subprocess.run(
+            shlex.split(
+                f'ffprobe -of json -show_format "{文件路径}"'
+            ), capture_output=True
+        ).stdout
+    )
+    if 'creation_time' not in json输出['format']['tags']:
+        print(f'        检测到原始视频中不包含媒体创建时间，使用 exiftool 进行纠正')
+        subprocess.run(
+            shlex.split(
+                f'exiftool -overwrite_original "-CreateDate={datetime.fromtimestamp(path.getctime(文件路径)).isoformat()}" "{文件路径}"'
+            ), capture_output=True
+        )
+        # 可能会需要 -charset filename=YOUR_SYSTEM_CODE_PAGE
 
 
 
