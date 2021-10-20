@@ -377,7 +377,7 @@ def 压缩主库视频到随库(视频列表):
             新分辨率 = '480:-2'
         print(f'        新分辨率   {新分辨率}')
         
-        命令 = f'ffmpeg -hide_banner -y -i "{src}" -vf "scale={新分辨率}" -crf 23 "{dst}"'
+        命令 = f'ffmpeg -hide_banner -y -i "{src}" -vf "scale={新分辨率}" -crf 23 -map_metadata 0 "{dst}"'
         process = subprocess.Popen(shlex.split(命令), 
                                 stdout=subprocess.PIPE, 
                                 stderr=subprocess.STDOUT)
