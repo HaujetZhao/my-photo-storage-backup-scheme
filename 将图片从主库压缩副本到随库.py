@@ -45,6 +45,7 @@ import glob
 import json
 import shlex
 import time
+import re
 from os import path
 from datetime import datetime
 from io import TextIOWrapper
@@ -183,9 +184,9 @@ def main():
     主库需要压缩的视频列表 = [x for x in 主库视频列表
                    if path.splitext(path.join(x[0], x[1]))[0] 
                    not in 随库视频前缀列表]
-    # print(f'随库完好视频列表:{随库完好视频列表}')
+    # pprint(f'随库完好视频列表:{随库完好视频列表}')
     # print(f'随库视频前缀列表：{随库视频前缀列表}')
-    # print(f'主库需要压缩的视频列表：{主库需要压缩的视频列表}')
+    # pprint(f'主库需要压缩的视频列表：{主库需要压缩的视频列表}')
     # print(f'：{}')
     # input('...')
     
@@ -460,38 +461,49 @@ def 纠正视频创建时间(文件路径):
     )
     if 'creation_time' not in json输出['format']['tags']:
         print(f'        检测到原始视频中不包含媒体创建时间，使用 exiftool 进行纠正')
-        subprocess.run(
-            shlex.split(
-                f'exiftool -overwrite_original "-AllDates={datetime.fromtimestamp(path.getctime(文件路径)).isoformat()}" "{文件路径}"'
-            ), capture_output=True
-        )
-        # 可能会需要 -charset filename=YOUR_SYSTEM_CODE_PAGE
+        使用EXIFTool纠正媒体时间(文件路径)
 
 
 def 纠正图片创建时间(文件路径):
     时间输出 = subprocess.run(
-            shlex.split(
-                f'magick identify -format %[exif:datetime] "{文件路径}"'
-            ), capture_output=True
-        ).stdout
+        shlex.split(
+            f'magick identify -format %[exif:datetime] "{文件路径}"'
+        ), capture_output=True
+    ).stdout
     
     if not 时间输出: 
         print(f'        检测到原始图片的原数据没有创建时间，使用 exiftool 进行纠正')
-        if len(''.join(filter(str.isdigit, path.basename(文件路径)))) > 14:
-            # 使用文件名中的时间纠正
-            subprocess.run(
-                shlex.split(
-                    f'exiftool -overwrite_original "-alldates<filename" "{文件路径}"'
-                ), capture_output=True
-            )
-        else:
-            # 使用文件创建时间纠正
-            subprocess.run(
-                shlex.split(
-                    f'exiftool -overwrite_original "-alldates<FileCreateDate" "{文件路径}"'
-                ), capture_output=True
-            )
-        # 可能会需要 -charset filename=YOUR_SYSTEM_CODE_PAGE
+        使用EXIFTool纠正媒体时间(文件路径)
+        
+
+def 使用EXIFTool纠正媒体时间(文件路径):
+    文件名 = path.basename(文件路径)
+    匹配 = re.findall(r'\d+', 文件名)
+    全数字 = ''.join(匹配)
+    数字长度 = len(全数字)
+    if 数字长度 >= 14 \
+            and len(匹配[0]) >= 4 \
+            and int(全数字[4:5]) in range(1, 12 + 1) \
+            and int(全数字[6:7]) in range(1, 31 + 1) \
+            and int(全数字[8:9]) in range(0, 24 + 1) \
+            and int(全数字[6:7]) in range(0, 60 + 1) \
+            and int(全数字[6:7]) in range(0, 60 + 1):
+        # 使用文件名中的时间纠正
+        print(f'        使用文件名纠正拍摄日期')
+        subprocess.run(
+            shlex.split(
+                f'exiftool -overwrite_original "-alldates<filename" "{文件路径}"'
+            ), capture_output=True
+        )
+    else:
+        # 使用文件创建时间纠正
+        print(f'        使用文件创建时间纠正拍摄日期')
+        subprocess.run(
+            shlex.split(
+                f'exiftool -overwrite_original "-alldates<FileCreateDate" "{文件路径}"'
+            ), capture_output=True
+        )
+    # 可能会需要 -charset filename=YOUR_SYSTEM_CODE_PAGE
 
 
 if __name__ == '__main__': 
