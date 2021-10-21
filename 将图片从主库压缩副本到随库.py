@@ -483,11 +483,11 @@ def 使用EXIFTool纠正媒体时间(文件路径):
     数字长度 = len(全数字)
     if 数字长度 >= 14 \
             and len(匹配[0]) >= 4 \
-            and int(全数字[4:5]) in range(1, 12 + 1) \
-            and int(全数字[6:7]) in range(1, 31 + 1) \
-            and int(全数字[8:9]) in range(0, 24 + 1) \
-            and int(全数字[6:7]) in range(0, 60 + 1) \
-            and int(全数字[6:7]) in range(0, 60 + 1):
+            and int(全数字[4:6]) in range(1, 12 + 1) \
+            and int(全数字[6:8]) in range(1, 31 + 1) \
+            and int(全数字[8:10]) in range(0, 24 + 1) \
+            and int(全数字[10:12]) in range(0, 60 + 1) \
+            and int(全数字[12:14]) in range(0, 60 + 1):
         # 使用文件名中的时间纠正
         print(f'        使用文件名纠正拍摄日期')
         subprocess.run(
